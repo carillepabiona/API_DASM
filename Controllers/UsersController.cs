@@ -111,5 +111,43 @@ namespace API_DASM.Controllers
                 message = "Profile updated successfully."
             });
         }
+
+        [HttpPut("change-password/{id}")]
+        public async Task<IActionResult> ChangePassword(
+    Guid id,
+    ChangePasswordRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // VERIFY CURRENT PASSWORD
+            bool validPassword = BCrypt.Net.BCrypt.Verify(
+                request.CurrentPassword,
+                user.PasswordHash);
+
+            if (!validPassword)
+            {
+                return BadRequest("Current password is incorrect.");
+            }
+
+            // HASH NEW PASSWORD
+            user.PasswordHash =
+                BCrypt.Net.BCrypt.HashPassword(
+                    request.NewPassword);
+
+            // OPTIONAL
+            user.MustChangePassword = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password updated successfully."
+            });
+        }
     }
 }
