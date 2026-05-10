@@ -68,11 +68,14 @@ namespace DASM_API.Controllers
 
             return Ok(new
             {
-                message = "Login successful",
-                user.Id,
-                user.Username,
-                user.FullName,
-                user.RoleId
+                Id = user.Id,
+                Username = user.Username,
+                FullName = user.FullName,
+                Email = user.Email,
+                ContactNumber = user.ContactNumber,
+                Address = user.Address,
+                RoleId = user.RoleId,
+                CreatedAt = user.CreatedAt
             });
         }
     }
