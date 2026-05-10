@@ -23,11 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-    <Folder Include="Data\" />
-    <Folder Include="DTOs\" />
-    <Folder Include="Hubs\" />
-    <Folder Include="Models\" />
     <Folder Include="Security\" />
     <Folder Include="Services\" />
   </ItemGroup>
