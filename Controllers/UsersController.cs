@@ -88,5 +88,28 @@ namespace API_DASM.Controllers
 
             return Ok(user);
         }
+
+        [HttpPut("update-profile/{id}")]
+        public async Task<IActionResult> UpdateProfile(
+    Guid id,UpdateProfileRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // ONLY UPDATE THESE
+            user.ContactNumber = request.ContactNumber;
+            user.Address = request.Address;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Profile updated successfully."
+            });
+        }
     }
 }
