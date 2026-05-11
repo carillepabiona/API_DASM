@@ -15,12 +15,25 @@ namespace API_DASM.Controllers
             _context = context;
         }
 
-        [HttpGet]
+         [HttpGet]
         public async Task<IActionResult> GetRoles()
         {
-            var roles = await _context.Roles.ToListAsync();
+            try
+            {
+                var roles = await _context.Roles
+                    .Select(r => new
+                    {
+                        Id = r.Id,
+                        Name = r.Name
+                    })
+                    .ToListAsync();
 
-            return Ok(roles);
+                return Ok(roles);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }

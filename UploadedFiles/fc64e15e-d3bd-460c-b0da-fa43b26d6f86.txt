@@ -1,0 +1,68 @@
+CREATE DATABASE DocArchiveDB;
+
+use DocArchiveDB
+
+
+// for user
+
+CREATE TABLE Users (
+    Id INT PRIMARY KEY IDENTITY,
+    Username NVARCHAR(50) UNIQUE,
+    PasswordHash NVARCHAR(255),
+    FullName NVARCHAR(100),
+    RoleId INT,
+    IsActive BIT DEFAULT 1
+);
+
+CREATE TABLE Roles (
+    Id INT PRIMARY KEY IDENTITY,
+    RoleName NVARCHAR(50)
+);
+
+CREATE TABLE Permissions (
+    Id INT PRIMARY KEY IDENTITY,
+    Name NVARCHAR(50)
+);
+
+CREATE TABLE RolePermissions (
+    Id INT PRIMARY KEY IDENTITY,
+    RoleId INT,
+    PermissionId INT
+);
+
+CREATE TABLE Categories (
+    Id INT PRIMARY KEY IDENTITY,
+    Name NVARCHAR(100)
+);
+
+
+if gagawa kayo ng account eto database muna kayo manually gawa since wala pang admin side 
+USE DocArchiveDB;
+
+INSERT INTO Users (Username, PasswordHash, FullName, RoleId)
+VALUES ('pedro225', 'asdf', 'Pedro Gil', 3);
+
+
+
+after niyan, make sure na yung appsetting nung server is yung connection ng database niyo sa ssms
+
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=ASUS\\SQLEXPRESS01;Database=AFP_DMS;Trusted_Connection=True;TrustServerCertificate=True;"
+  }
+}
+
+eto yung "make sure na yung SQLEXPRESS01 is yung name ng database niyo
+
+
+install niyo rin to sa visual studio, before installing make sure na tama yung version niyo kung hindi ibahin niyo na lang yung version na nakalagay sa mga need niyong iinstall.
+
+dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
+Install-Package Microsoft.EntityFrameworkCore.SqlServer -Version 9.0.0
+Install-Package Microsoft.EntityFrameworkCore.Tools -Version 9.0.0
+Install-Package Microsoft.EntityFrameworkCore.Design -Version 9.0.0
+dotnet workload restore
+
+
+kapag may database na kayo and connected na sila sa make sure niyong naka-open yung server niyo para makapasok yung account na nilagay niyo
+

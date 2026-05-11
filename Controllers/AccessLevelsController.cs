@@ -18,10 +18,22 @@ namespace API_DASM.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAccessLevels()
         {
-            var accessLevels =
-                await _context.AccessLevels.ToListAsync();
+            try
+            {
+                var accessLevels = await _context.AccessLevels
+                    .Select(a => new
+                    {
+                        Id = a.Id,
+                        Name = a.Name
+                    })
+                    .ToListAsync();
 
-            return Ok(accessLevels);
+                return Ok(accessLevels);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }

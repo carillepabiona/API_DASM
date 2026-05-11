@@ -1,0 +1,167 @@
+@page "/documents-user"
+@inject HttpClient Http
+@layout MainLayout
+@using DocArchive.Models
+
+<link href="css/documents-user.css" rel="stylesheet" />
+
+<div class="content">
+
+    <div class="doc-container">
+
+        <div class="doc-header">
+            <h1>My Documents</h1>
+            <p>Browse your uploaded files</p>
+        </div>
+
+        <!-- GRID VIEW -->
+        <div class="doc-grid">
+
+            @if (documents == null || documents.Count == 0)
+            {
+                <div class="empty-state">
+                    📂 No documents yet
+                </div>
+            }
+            else
+            {
+                @foreach (var doc in documents)
+                {
+                    <div class="doc-card" @onclick="() => ViewFile(doc.FilePath)">
+
+                        <!-- PREVIEW -->
+                        <div class="doc-preview">
+                            @if (IsImage(doc.FilePath))
+                            {
+                                <img src="@doc.FilePath" />
+                            }
+                            else
+                            {
+                                <div class="file-icon">📄</div>
+                            }
+                        </div>
+
+                        <!-- INFO -->
+                        <div class="doc-info">
+                            <div class="doc-title">@doc.Title</div>
+
+                            <div class="doc-meta">
+                                <span class="category">
+                                    @GetCategoryName(doc.CategoryId)
+                                </span>
+
+                                <span class="date">
+                                    @doc.CreatedAt.ToString("MMM dd")
+                                </span>
+                            </div>
+                        </div>
+
+                    </div>
+                }
+            }
+
+        </div>
+
+        <!-- PREVIEW MODAL -->
+        @if (!string.IsNullOrEmpty(selectedFile))
+        {
+            <div class="preview-modal">
+                <div class="preview-box">
+
+                    <span class="close" @onclick="ClosePreview">✕</span>
+
+                    @if (IsImage(selectedFile))
+                    {
+                        <img src="@selectedFile" />
+                    }
+                    else
+                    {
+                        <iframe src="@selectedFile"></iframe>
+                    }
+
+                </div>
+            </div>
+        }
+
+    </div>
+
+</div>
+
+@code {
+
+    private List<Document> documents = new();
+    private List<Category> categories = new();
+
+    private string selectedFile = "";
+    private Timer refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocuments();
+        await LoadCategories();
+
+        // AUTO REFRESH
+        refreshTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadDocuments();
+                StateHasChanged();
+            });
+        }, null, 0, 3000);
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private async Task LoadDocuments()
+    {
+        try
+        {
+            documents = await Http.GetFromJsonAsync<List<Document>>("api/documents")
+                        ?? new List<Document>();
+        }
+        catch
+        {
+            documents = new List<Document>();
+        }
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            categories = await Http.GetFromJsonAsync<List<Category>>("api/categories")
+                         ?? new List<Category>();
+        }
+        catch
+        {
+            categories = new List<Category>();
+        }
+    }
+
+    private string GetCategoryName(int id)
+    {
+        return categories.FirstOrDefault(c => c.Id == id)?.Name ?? "Unknown";
+    }
+
+    private void ViewFile(string path)
+    {
+        selectedFile = path;
+    }
+
+    private void ClosePreview()
+    {
+        selectedFile = "";
+    }
+
+    private bool IsImage(string path)
+    {
+        return path.EndsWith(".jpg") ||
+               path.EndsWith(".png") ||
+               path.EndsWith(".jpeg") ||
+               path.EndsWith(".jfif");
+    }
+}
