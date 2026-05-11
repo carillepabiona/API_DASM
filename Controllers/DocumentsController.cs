@@ -258,15 +258,17 @@ namespace API_DASM.Controllers
 
                         x.CreatedAt,
 
+                        x.FolderId,
+
                         Category =
-                            x.Category != null
-                            ? x.Category.Name
-                            : null,
+        x.Category != null
+        ? x.Category.Name
+        : null,
 
                         Folder =
-                            x.Folder != null
-                            ? x.Folder.Name
-                            : "Root"
+        x.Folder != null
+        ? x.Folder.Name
+        : "Root"
                     })
                     .ToListAsync();
 
