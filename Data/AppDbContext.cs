@@ -15,5 +15,31 @@ namespace API_DASM.Data
         public DbSet<Role> Roles { get; set; }
 
         public DbSet<AccessLevel> AccessLevels { get; set; }
+
+        public DbSet<Document> Documents { get; set; }
+
+        public DbSet<DocumentVersion> DocumentVersions { get; set; }
+
+        public DbSet<Category> Categories { get; set; }
+
+        public DbSet<Folder> Folders { get; set; }
+
+        protected override void OnModelCreating(
+            ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<DocumentVersion>()
+                .HasOne(x => x.Document)
+                .WithMany()
+                .HasForeignKey(x => x.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UploadedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
     }
 }

@@ -1,0 +1,171 @@
+-- =========================
+-- CREATE DATABASE (OPTIONAL)
+-- =========================
+CREATE DATABASE DocArchiveDB;
+GO
+
+USE DocArchiveDB;
+GO
+
+-- =========================
+-- ROLES
+-- =========================
+CREATE TABLE Roles (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    RoleName NVARCHAR(50) NOT NULL
+);
+
+-- =========================
+-- PERMISSIONS
+-- =========================
+CREATE TABLE Permissions (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL
+);
+
+-- =========================
+-- ROLE PERMISSION
+-- =========================
+CREATE TABLE RolePermission (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    RoleId INT NOT NULL,
+    PermissionId INT NOT NULL,
+
+    CONSTRAINT FK_RolePermission_Role
+        FOREIGN KEY (RoleId) REFERENCES Roles(Id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT FK_RolePermission_Permission
+        FOREIGN KEY (PermissionId) REFERENCES Permissions(Id)
+        ON DELETE CASCADE
+);
+
+-- =========================
+-- USERS
+-- =========================
+CREATE TABLE Users (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Username NVARCHAR(50) NOT NULL,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    RoleId INT NOT NULL,
+
+    IsActive BIT DEFAULT 1,
+    IsFirstLogin BIT DEFAULT 1,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    CreatedBy NVARCHAR(100),
+
+    UserCode NVARCHAR(5) NOT NULL,
+    Address NVARCHAR(255),
+    Email NVARCHAR(255),
+    ContactNumber NVARCHAR(15),
+    AccessLevel INT,
+
+    CONSTRAINT FK_Users_Role
+        FOREIGN KEY (RoleId) REFERENCES Roles(Id)
+);
+
+-- =========================
+-- CATEGORIES
+-- =========================
+CREATE TABLE Categories (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL
+);
+
+-- =========================
+-- DOCUMENTS
+-- =========================
+CREATE TABLE Documents (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Title NVARCHAR(255) NOT NULL,
+    FilePath NVARCHAR(500) NOT NULL,
+    CategoryId INT NOT NULL,
+    UploadedBy INT NOT NULL,
+
+    IsConfidential BIT DEFAULT 0,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+
+    CONSTRAINT FK_Documents_Category
+        FOREIGN KEY (CategoryId) REFERENCES Categories(Id),
+
+    CONSTRAINT FK_Documents_User
+        FOREIGN KEY (UploadedBy) REFERENCES Users(Id)
+);
+
+-- =========================
+-- DOCUMENT ACCESS
+-- =========================
+CREATE TABLE DocumentAccess (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    DocumentId INT NOT NULL,
+    RoleId INT NOT NULL,
+
+    CanView BIT DEFAULT 1,
+    CanEdit BIT DEFAULT 0,
+    CanDelete BIT DEFAULT 0,
+
+    CONSTRAINT FK_DocumentAccess_Document
+        FOREIGN KEY (DocumentId) REFERENCES Documents(Id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT FK_DocumentAccess_Role
+        FOREIGN KEY (RoleId) REFERENCES Roles(Id)
+        ON DELETE CASCADE
+);
+
+-- =========================
+-- AUDIT LOGS
+-- =========================
+CREATE TABLE AuditLogs (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NOT NULL,
+    Action NVARCHAR(100),
+    DocumentId INT,
+    Timestamp DATETIME DEFAULT GETDATE(),
+
+    CONSTRAINT FK_AuditLogs_User
+        FOREIGN KEY (UserId) REFERENCES Users(Id),
+
+    CONSTRAINT FK_AuditLogs_Document
+        FOREIGN KEY (DocumentId) REFERENCES Documents(Id)
+);
+
+
+
+
+
+
+ALTER TABLE Users ADD CONSTRAINT UQ_Users_Username UNIQUE (Username);
+ALTER TABLE Users ADD CONSTRAINT UQ_Users_UserCode UNIQUE (UserCode);
+
+
+CREATE INDEX IDX_Documents_CategoryId ON Documents(CategoryId);
+CREATE INDEX IDX_Documents_UploadedBy ON Documents(UploadedBy);
+CREATE INDEX IDX_AuditLogs_UserId ON AuditLogs(UserId);
+
+
+-- Roles
+INSERT INTO Roles (RoleName) VALUES
+('Admin'),
+('Employee'),
+('Civilian'),
+('Military Personnel');
+
+-- Permissions
+INSERT INTO Permissions (Name) VALUES
+('View'),
+('Edit'),
+('Delete');
+
+-- Admin user (example)
+INSERT INTO Users (
+    Username, PasswordHash, FullName, RoleId, UserCode
+)
+VALUES (
+    'admin',
+    'hashed_password_here',
+    'System Administrator',
+    1,
+    'A0001'
+);
