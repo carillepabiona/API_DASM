@@ -1,5 +1,6 @@
 ﻿using API_DASM.Data;
 using API_DASM.Models;
+using API_DASM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -14,10 +15,15 @@ namespace DASM_API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ActivityLoggerService _logger;
 
-        public AuthController(AppDbContext context)
+        public AuthController(
+    AppDbContext context,
+    ActivityLoggerService logger)
         {
             _context = context;
+
+            _logger = logger;
         }
 
         [HttpPost("login")]
@@ -66,6 +72,15 @@ namespace DASM_API.Controllers
 
             await _context.SaveChangesAsync();
 
+            // ACTIVITY LOG
+            await _logger.LogActivity(
+                user.Id,
+                "Login",
+                "Authentication",
+                user.Id.ToString(),
+                $"{user.FullName} logged into the system.",
+                request.AppType);
+
             return Ok(new
             {
                 Id = user.Id,
@@ -82,6 +97,32 @@ namespace DASM_API.Controllers
             });
         }
 
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout(LogoutRequest request)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(x => x.Id == request.UserId);
+
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // ACTIVITY LOG
+            await _logger.LogActivity(
+                user.Id,
+                "Logout",
+                user.FullName,
+                user.Id.ToString(),
+                $"{user.FullName} logged out from the system.",
+                request.AppType);
+
+            return Ok(new
+            {
+                message = "Logout successful."
+            });
+        }
+
 
     }
 
@@ -89,6 +130,13 @@ namespace DASM_API.Controllers
     {
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
+
+        // Admin or Personnel
+        public string AppType { get; set; } = "";
+    }
+    public class LogoutRequest
+    {
+        public Guid UserId { get; set; }
 
         // Admin or Personnel
         public string AppType { get; set; } = "";

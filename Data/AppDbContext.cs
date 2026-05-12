@@ -23,6 +23,7 @@ namespace API_DASM.Data
         public DbSet<Category> Categories { get; set; }
 
         public DbSet<Folder> Folders { get; set; }
+        public DbSet<ActivityLog> ActivityLogs { get; set; }
 
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
@@ -52,6 +53,12 @@ namespace API_DASM.Data
                 .WithMany()
                 .HasForeignKey(x => x.AccessLevelId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -3,6 +3,7 @@ using API_DASM.DTOs;
 using API_DASM.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using API_DASM.Services;
 
 namespace API_DASM.Controllers
 {
@@ -12,9 +13,12 @@ namespace API_DASM.Controllers
     {
         private readonly AppDbContext _context;
 
-        public FoldersController(AppDbContext context)
+        private readonly ActivityLoggerService _logger;
+
+        public FoldersController(AppDbContext context, ActivityLoggerService logger )
         {
             _context = context;
+            _logger = logger;
         }
 
         // =========================
@@ -81,6 +85,13 @@ namespace API_DASM.Controllers
             _context.Folders.Add(folder);
 
             await _context.SaveChangesAsync();
+            
+            await _logger.LogActivity(
+                dto.CreatedBy,
+                "Create Folder",
+                folder.Name,
+                folder.Id.ToString(),
+                $"Created folder: {folder.Name}");
 
             return Ok(folder);
         }

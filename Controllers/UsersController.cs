@@ -2,9 +2,11 @@
 using API_DASM.DTOs;
 using API_DASM.Hubs;
 using API_DASM.Models;
+using API_DASM.Services;
+using Azure.Core;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace API_DASM.Controllers
 {
@@ -15,11 +17,15 @@ namespace API_DASM.Controllers
         private readonly AppDbContext _context;
         private readonly IHubContext<UserHub> _hub;
 
-        public UsersController(AppDbContext context,
-            IHubContext<UserHub> hub)
+        private readonly ActivityLoggerService _logger;
+
+        public UsersController(AppDbContext context, IHubContext<UserHub> hub, ActivityLoggerService logger)
         {
             _context = context;
+
             _hub = hub;
+
+            _logger = logger;
         }
 
         [HttpGet]
@@ -86,6 +92,13 @@ namespace API_DASM.Controllers
 
             await _context.SaveChangesAsync();
 
+            await _logger.LogActivity(
+                 dto.CreatedBy,
+                 "Create User",
+                 user.Username,
+                 user.Id.ToString(),
+                 $"Created user account: {user.Username}");
+
             return Ok(user);
         }
 
@@ -107,6 +120,13 @@ namespace API_DASM.Controllers
             user.Address = request.Address;
 
             await _context.SaveChangesAsync();
+
+            await _logger.LogActivity(
+                 id,
+                 "Update Profile",
+                 user.FullName,
+                 user.Id.ToString(),
+                 "Updated profile information");
 
             return Ok(new
             {
@@ -145,6 +165,13 @@ namespace API_DASM.Controllers
             user.MustChangePassword = false;
 
             await _context.SaveChangesAsync();
+
+            await _logger.LogActivity(
+     id,
+                 "Change Password",
+                 user.Username,
+                 user.Id.ToString(),
+                 "Changed account password");
 
             return Ok(new
             {

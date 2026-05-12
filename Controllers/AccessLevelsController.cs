@@ -1,4 +1,5 @@
 ﻿using API_DASM.Data;
+using API_DASM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,7 @@ namespace API_DASM.Controllers
     public class AccessLevelsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ActivityLoggerService _logger;
 
         public AccessLevelsController(AppDbContext context)
         {
@@ -35,5 +37,7 @@ namespace API_DASM.Controllers
                 return StatusCode(500, ex.Message);
             }
         }
+
+
     }
 }

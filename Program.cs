@@ -64,6 +64,9 @@ builder.Services
 
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<DocumentPermissionService>();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ActivityLoggerService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

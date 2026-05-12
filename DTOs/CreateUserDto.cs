@@ -21,5 +21,9 @@
         public int AccessLevelId { get; set; }
 
         public bool IsActive { get; set; }
+
+        public Guid CreatedBy { get; set; }
+
+        public string CreatedByName { get; set; }
     }
 }

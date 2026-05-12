@@ -1,6 +1,7 @@
 ﻿using API_DASM.Data;
 using API_DASM.DTOs;
 using API_DASM.Models;
+using API_DASM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,9 +13,12 @@ namespace API_DASM.Controllers
     {
         private readonly AppDbContext _context;
 
-        public CategoriesController(AppDbContext context)
+        private readonly ActivityLoggerService _logger;
+        public CategoriesController(AppDbContext context, ActivityLoggerService logger)
         {
             _context = context;
+
+            _logger = logger;
         }
 
         // =========================
@@ -75,6 +79,13 @@ namespace API_DASM.Controllers
                 _context.Categories.Add(category);
 
                 await _context.SaveChangesAsync();
+
+                await _logger.LogActivity(
+                   request.CreatedBy,
+                   "Create Category",
+                   category.Name,
+                   category.Id.ToString(),
+                   $"Created category: {category.Name}");
 
                 return Ok(new
                 {

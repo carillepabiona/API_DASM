@@ -2,11 +2,12 @@
 // API - DocumentsController.cs
 // ============================
 
-using API_DASM.Services;
 using API_DASM.Data;
 using API_DASM.Models;
+using API_DASM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Serilog.Core;
 
 namespace API_DASM.Controllers
 {
@@ -18,13 +19,15 @@ namespace API_DASM.Controllers
 
         private readonly DocumentPermissionService _permission;
 
-        public DocumentsController(
-            AppDbContext context,
-            DocumentPermissionService permission)
+        private readonly ActivityLoggerService _logger;
+
+        public DocumentsController(AppDbContext context, DocumentPermissionService permission, ActivityLoggerService logger)
         {
             _context = context;
 
             _permission = permission;
+
+            _logger = logger;
         }
 
         // =========================
@@ -237,6 +240,13 @@ namespace API_DASM.Controllers
 
                 await _context.SaveChangesAsync();
 
+                await _logger.LogActivity(
+                        uploadedBy,
+                        "Upload Document",
+                        document.OriginalFileName,
+                        document.Id.ToString(),
+                        $"Uploaded document: {document.OriginalFileName}");
+
                 // =========================
                 // CREATE VERSION
                 // =========================
@@ -403,6 +413,13 @@ namespace API_DASM.Controllers
             var contentType =
                 GetContentType(document.FileExtension);
 
+            await _logger.LogActivity(
+                 userId,
+                 "View Document",
+                 document.OriginalFileName,
+                 document.Id.ToString(),
+                 $"Viewed document: {document.OriginalFileName}");
+
             return PhysicalFile(
                 path,
                 contentType,
@@ -445,6 +462,13 @@ namespace API_DASM.Controllers
             var bytes =
                 await System.IO.File.ReadAllBytesAsync(path);
 
+            await _logger.LogActivity(
+                userId,
+                "Download Document",
+                document.OriginalFileName,
+                document.Id.ToString(),
+                $"Downloaded document: {document.OriginalFileName}");
+
             return File(
                 bytes,
                 GetContentType(document.FileExtension),
@@ -481,6 +505,13 @@ namespace API_DASM.Controllers
 
             await _context.SaveChangesAsync();
 
+            await _logger.LogActivity(
+                 userId,
+                 "Delete Document",
+                 document.OriginalFileName,
+                 document.Id.ToString(),
+                 $"Deleted document: {document.OriginalFileName}");
+
             return Ok("Document deleted.");
         }
 
@@ -504,6 +535,8 @@ namespace API_DASM.Controllers
                 await _context.Documents
                     .FirstOrDefaultAsync(x => x.Id == id);
 
+            var oldName = document.OriginalFileName;
+
             if (document == null)
             {
                 return NotFound();
@@ -515,6 +548,13 @@ namespace API_DASM.Controllers
             document.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            await _logger.LogActivity(
+                 userId,
+                 "Rename Document",
+                 oldName,
+                 document.Id.ToString(),
+                 $"Renamed document from {oldName} to {request.NewFileName}");
 
             return Ok("Document renamed.");
         }
