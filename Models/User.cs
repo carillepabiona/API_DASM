@@ -39,10 +39,10 @@ namespace API_DASM.Models
 
         // NAVIGATION
         [ForeignKey(nameof(RoleId))]
-        public Role Role { get; set; }
+        public Role? Role { get; set; }
 
         [ForeignKey(nameof(AccessLevelId))]
-        public AccessLevel AccessLevel { get; set; }
+        public AccessLevel? AccessLevel { get; set; }
 
 
     }

@@ -151,5 +151,34 @@ namespace API_DASM.Controllers
                 message = "Password updated successfully."
             });
         }
+
+        [HttpGet("access/{userId}")]
+        public async Task<IActionResult> GetAccess(Guid userId)
+        {
+            var user = await _context.Users
+
+                .Include(x => x.AccessLevel)
+
+                .FirstOrDefaultAsync(x => x.Id == userId);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            if (user.AccessLevel == null)
+            {
+                return BadRequest("Access level not found.");
+            }
+
+            return Ok(new
+            {
+                CanView = user.AccessLevel.CanView,
+                CanEdit = user.AccessLevel.CanEdit,
+                CanShare = user.AccessLevel.CanShare,
+                CanDownload = user.AccessLevel.CanDownload,
+                CanDelete = user.AccessLevel.CanDelete
+            });
+        }
     }
 }

@@ -40,6 +40,18 @@ namespace API_DASM.Data
                 .WithMany()
                 .HasForeignKey(d => d.UploadedBy)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<User>()
+                .HasOne(x => x.Role)
+                .WithMany()
+                .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<User>()
+                .HasOne(x => x.AccessLevel)
+                .WithMany()
+                .HasForeignKey(x => x.AccessLevelId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

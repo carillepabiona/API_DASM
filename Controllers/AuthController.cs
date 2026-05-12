@@ -74,7 +74,10 @@ namespace DASM_API.Controllers
                 Email = user.Email,
                 ContactNumber = user.ContactNumber,
                 Address = user.Address,
+
                 RoleId = user.RoleId,
+                AccessLevelId = user.AccessLevelId,
+
                 CreatedAt = user.CreatedAt
             });
         }
