@@ -1,5 +1,6 @@
 using API_DASM.Data;
 using API_DASM.Hubs;
+using API_DASM.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -62,6 +63,7 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<DocumentPermissionService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

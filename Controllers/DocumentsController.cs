@@ -2,6 +2,7 @@
 // API - DocumentsController.cs
 // ============================
 
+using API_DASM.Services;
 using API_DASM.Data;
 using API_DASM.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -15,9 +16,63 @@ namespace API_DASM.Controllers
     {
         private readonly AppDbContext _context;
 
-        public DocumentsController(AppDbContext context)
+        private readonly DocumentPermissionService _permission;
+
+        public DocumentsController(
+            AppDbContext context,
+            DocumentPermissionService permission)
         {
             _context = context;
+
+            _permission = permission;
+        }
+
+        // =========================
+        // GET CONTENT TYPE
+        // =========================
+
+        private string GetContentType(string extension)
+        {
+            extension = extension.ToLower();
+
+            return extension switch
+            {
+                ".pdf" =>
+                    "application/pdf",
+
+                ".png" =>
+                    "image/png",
+
+                ".jpg" or ".jpeg" =>
+                    "image/jpeg",
+
+                ".doc" =>
+                    "application/msword",
+
+                ".docx" =>
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+                ".xls" =>
+                    "application/vnd.ms-excel",
+
+                ".xlsx" =>
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+                ".ppt" =>
+                    "application/vnd.ms-powerpoint",
+
+                ".pptx" =>
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+                ".txt" =>
+                    "text/plain",
+
+                ".mp4" =>
+                    "video/mp4",
+
+                _ =>
+                    "application/octet-stream"
+            };
         }
 
         // =========================
@@ -133,7 +188,7 @@ namespace API_DASM.Controllers
                         uniqueFileName);
 
                 // =========================
-                // SAVE FILE TO SERVER
+                // SAVE FILE
                 // =========================
 
                 using (var stream =
@@ -151,7 +206,6 @@ namespace API_DASM.Controllers
                     {
                         Id = Guid.NewGuid(),
 
-
                         FolderId = parsedFolderId,
 
                         CategoryId = categoryId,
@@ -165,6 +219,7 @@ namespace API_DASM.Controllers
 
                         FileSize = file.Length,
 
+                        // FULL FILE PATH
                         StoragePath = fullPath,
 
                         UploadedBy = uploadedBy,
@@ -178,16 +233,12 @@ namespace API_DASM.Controllers
                         UpdatedAt = DateTime.UtcNow
                     };
 
-                // =========================
-                // SAVE TO DATABASE
-                // =========================
-
                 _context.Documents.Add(document);
 
                 await _context.SaveChangesAsync();
 
                 // =========================
-                // CREATE DOCUMENT VERSION
+                // CREATE VERSION
                 // =========================
 
                 var version =
@@ -210,10 +261,6 @@ namespace API_DASM.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // =========================
-                // RETURN SUCCESS
-                // =========================
-
                 return Ok(new
                 {
                     success = true,
@@ -234,9 +281,9 @@ namespace API_DASM.Controllers
             }
         }
 
-        // =========================================
-        // GET USER ACCESS LEVEL
-        // =========================================
+        // =========================
+        // GET USER ACCESS
+        // =========================
 
         private async Task<AccessLevel?> GetUserAccess(Guid userId)
         {
@@ -264,6 +311,8 @@ namespace API_DASM.Controllers
 
                         .Include(x => x.Folder)
 
+                        .Include(x => x.User)
+
                         .Where(x => !x.IsDeleted)
 
                         .OrderByDescending(x => x.CreatedAt)
@@ -287,9 +336,9 @@ namespace API_DASM.Controllers
                             x.CategoryId,
 
                             UploadedBy =
-                        x.User != null
-                        ? x.User.FullName
-                        : "Unknown User",
+                                x.User != null
+                                ? x.User.FullName
+                                : "Unknown User",
 
                             Category =
                                 x.Category != null
@@ -321,56 +370,70 @@ namespace API_DASM.Controllers
         // =========================
 
         [HttpGet("view/{id}")]
-        public async Task<IActionResult> ViewFile(
-    Guid id,
-    [FromQuery] Guid userId)
+        public async Task<IActionResult> ViewDocument(
+            Guid id,
+            Guid userId)
         {
-            // =========================
             // CHECK ACCESS
-            // =========================
-
-            var access = await GetUserAccess(userId);
-
-            if (access == null || !access.CanView)
+            if (!await _permission.CanView(userId))
             {
                 return Unauthorized(
-                    new
-                    {
-                        success = false,
-                        message = "You do not have permission to view files."
-                    });
+                    "You do not have permission to view documents.");
             }
-
-            // =========================
-            // FIND DOCUMENT
-            // =========================
 
             var document =
                 await _context.Documents
-                    .FirstOrDefaultAsync(x => x.Id == id);
+                    .FirstOrDefaultAsync(x =>
+                        x.Id == id);
 
             if (document == null)
             {
-                return NotFound("Document not found.");
+                return NotFound();
             }
 
-            // =========================
-            // CHECK FILE EXISTS
-            // =========================
+            // REAL FILE PATH
+            var path =
+            Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "UploadedFiles",
+                document.StoragePath);
 
-            if (!System.IO.File.Exists(document.StoragePath))
+            if (!System.IO.File.Exists(path))
             {
-                return NotFound("Physical file missing.");
+                return NotFound("File not found.");
             }
 
-            var bytes =
-                await System.IO.File.ReadAllBytesAsync(
-                    document.StoragePath);
+            // CONTENT TYPE
+            var contentType =
+                "application/octet-stream";
 
-            return File(
-                bytes,
-                "application/octet-stream",
-                document.OriginalFileName);
+            // PDF
+            if (document.FileExtension == ".pdf")
+            {
+                contentType = "application/pdf";
+            }
+
+            // IMAGE
+            else if (
+                document.FileExtension == ".png" ||
+                document.FileExtension == ".jpg" ||
+                document.FileExtension == ".jpeg")
+            {
+                contentType = $"image/{document.FileExtension.Replace(".", "")}";
+            }
+
+            // WORD
+            else if (
+                document.FileExtension == ".docx")
+            {
+                contentType =
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            }
+
+            return PhysicalFile(
+                path,
+                contentType,
+                enableRangeProcessing: true);
         }
 
         // =========================
@@ -379,50 +442,38 @@ namespace API_DASM.Controllers
 
         [HttpGet("download/{id}")]
         public async Task<IActionResult> DownloadDocument(
-     Guid id,
-     [FromQuery] Guid userId)
+            Guid id,
+            Guid userId)
         {
-            // =========================
-            // CHECK ACCESS
-            // =========================
-
-            var access = await GetUserAccess(userId);
-
-            if (access == null || !access.CanDownload)
+            if (!await _permission.CanDownload(userId))
             {
                 return Unauthorized(
-                    new
-                    {
-                        success = false,
-                        message = "You do not have permission to download."
-                    });
+                    "No download permission.");
             }
-
-            // =========================
-            // FIND DOCUMENT
-            // =========================
 
             var document =
                 await _context.Documents
-                    .FirstOrDefaultAsync(x => x.Id == id);
+                    .FirstOrDefaultAsync(x =>
+                        x.Id == id);
 
             if (document == null)
             {
-                return NotFound("Document not found.");
+                return NotFound();
             }
 
-            // =========================
-            // CHECK FILE EXISTS
-            // =========================
+            var path =
+            Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "UploadedFiles",
+                document.StoragePath);
 
-            if (!System.IO.File.Exists(document.StoragePath))
+            if (!System.IO.File.Exists(path))
             {
-                return NotFound("Physical file missing.");
+                return NotFound("File not found.");
             }
 
             var bytes =
-                await System.IO.File.ReadAllBytesAsync(
-                    document.StoragePath);
+                await System.IO.File.ReadAllBytesAsync(path);
 
             return File(
                 bytes,
@@ -436,28 +487,14 @@ namespace API_DASM.Controllers
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(
-    Guid id,
-    [FromQuery] Guid userId)
+            Guid id,
+            Guid userId)
         {
-            // =========================
-            // CHECK ACCESS
-            // =========================
-
-            var access = await GetUserAccess(userId);
-
-            if (access == null || !access.CanDelete)
+            if (!await _permission.CanDelete(userId))
             {
                 return Unauthorized(
-                    new
-                    {
-                        success = false,
-                        message = "You do not have permission to delete."
-                    });
+                    "No delete permission.");
             }
-
-            // =========================
-            // FIND DOCUMENT
-            // =========================
 
             var document =
                 await _context.Documents
@@ -465,55 +502,60 @@ namespace API_DASM.Controllers
 
             if (document == null)
             {
-                return NotFound(
-                    new
-                    {
-                        success = false,
-                        message = "Document not found."
-                    });
+                return NotFound();
             }
 
-            // =========================
-            // DELETE FILE
-            // =========================
+            document.IsDeleted = true;
 
-            if (System.IO.File.Exists(document.StoragePath))
-            {
-                System.IO.File.Delete(document.StoragePath);
-            }
-
-            // =========================
-            // DELETE VERSIONS
-            // =========================
-
-            var versions =
-                await _context.DocumentVersions
-                    .Where(x => x.DocumentId == id)
-                    .ToListAsync();
-
-            _context.DocumentVersions.RemoveRange(versions);
-
-            // =========================
-            // DELETE DOCUMENT
-            // =========================
-
-            _context.Documents.Remove(document);
+            document.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                success = true,
-                message = "Document deleted successfully."
-            });
+            return Ok("Document deleted.");
         }
 
-        // =========================================
+        // =========================
+        // RENAME DOCUMENT
+        // =========================
+
+        [HttpPut("rename/{id}")]
+        public async Task<IActionResult> RenameDocument(
+            Guid id,
+            Guid userId,
+            RenameDocumentRequest request)
+        {
+            if (!await _permission.CanEdit(userId))
+            {
+                return Unauthorized(
+                    "No edit permission.");
+            }
+
+            var document =
+                await _context.Documents
+                    .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (document == null)
+            {
+                return NotFound();
+            }
+
+            document.OriginalFileName =
+                request.NewFileName;
+
+            document.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+
+            return Ok("Document renamed.");
+        }
+
+        // =========================
         // GET DOCUMENTS BY USER
-        // =========================================
+        // =========================
 
         [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetDocumentsByUser(Guid userId)
+        public async Task<IActionResult> GetDocumentsByUser(
+            Guid userId)
         {
             try
             {
@@ -561,7 +603,5 @@ namespace API_DASM.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
-
     }
 }
