@@ -392,11 +392,7 @@ namespace API_DASM.Controllers
             }
 
             // REAL FILE PATH
-            var path =
-            Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "UploadedFiles",
-                document.StoragePath);
+            var path = document.StoragePath;
 
             if (!System.IO.File.Exists(path))
             {
@@ -405,30 +401,7 @@ namespace API_DASM.Controllers
 
             // CONTENT TYPE
             var contentType =
-                "application/octet-stream";
-
-            // PDF
-            if (document.FileExtension == ".pdf")
-            {
-                contentType = "application/pdf";
-            }
-
-            // IMAGE
-            else if (
-                document.FileExtension == ".png" ||
-                document.FileExtension == ".jpg" ||
-                document.FileExtension == ".jpeg")
-            {
-                contentType = $"image/{document.FileExtension.Replace(".", "")}";
-            }
-
-            // WORD
-            else if (
-                document.FileExtension == ".docx")
-            {
-                contentType =
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            }
+                GetContentType(document.FileExtension);
 
             return PhysicalFile(
                 path,
@@ -461,11 +434,8 @@ namespace API_DASM.Controllers
                 return NotFound();
             }
 
-            var path =
-            Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "UploadedFiles",
-                document.StoragePath);
+            // REAL FILE PATH
+            var path = document.StoragePath;
 
             if (!System.IO.File.Exists(path))
             {
@@ -477,7 +447,7 @@ namespace API_DASM.Controllers
 
             return File(
                 bytes,
-                "application/octet-stream",
+                GetContentType(document.FileExtension),
                 document.OriginalFileName);
         }
 
@@ -566,6 +536,8 @@ namespace API_DASM.Controllers
 
                         .Include(x => x.Folder)
 
+                        .Include(x => x.User)
+
                         .Where(x =>
                             !x.IsDeleted &&
                             x.UploadedBy == userId)
@@ -584,12 +556,15 @@ namespace API_DASM.Controllers
 
                             x.CreatedAt,
 
+                            UploadedBy =
+                                x.User != null
+                                ? x.User.FullName
+                                : "Unknown User",
+
                             Category =
                                 x.Category != null
                                 ? x.Category.Name
                                 : "",
-
-                            x.UploadedBy,
 
                             x.FolderId
                         })
