@@ -147,9 +147,10 @@ namespace API_DASM.Controllers
                 // =========================
 
                 var document =
-                    new API_DASM.Models.Document
+                    new Document
                     {
                         Id = Guid.NewGuid(),
+
 
                         FolderId = parsedFolderId,
 
@@ -218,7 +219,8 @@ namespace API_DASM.Controllers
                     success = true,
                     message = "File uploaded successfully.",
                     documentId = document.Id,
-                    fileName = document.OriginalFileName
+                    fileName = document.OriginalFileName,
+                    folderId = document.FolderId
                 });
             }
             catch (Exception ex)
@@ -232,6 +234,20 @@ namespace API_DASM.Controllers
             }
         }
 
+        // =========================================
+        // GET USER ACCESS LEVEL
+        // =========================================
+
+        private async Task<AccessLevel?> GetUserAccess(Guid userId)
+        {
+            var user =
+                await _context.Users
+                    .Include(x => x.AccessLevel)
+                    .FirstOrDefaultAsync(x => x.Id == userId);
+
+            return user?.AccessLevel;
+        }
+
         // =========================
         // GET DOCUMENTS
         // =========================
@@ -239,40 +255,65 @@ namespace API_DASM.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDocuments()
         {
-            var documents =
-                await _context.Documents
-                    .Include(x => x.Category)
-                    .Include(x => x.Folder)
-                    .OrderByDescending(x => x.CreatedAt)
-                    .Select(x => new
-                    {
-                        x.Id,
+            try
+            {
+                var documents =
+                    await _context.Documents
 
-                        x.OriginalFileName,
+                        .Include(x => x.Category)
 
-                        x.FileExtension,
+                        .Include(x => x.Folder)
 
-                        x.FileSize,
+                        .Where(x => !x.IsDeleted)
 
-                        x.StoragePath,
+                        .OrderByDescending(x => x.CreatedAt)
 
-                        x.CreatedAt,
+                        .Select(x => new
+                        {
+                            x.Id,
 
-                        x.FolderId,
+                            x.OriginalFileName,
 
-                        Category =
-        x.Category != null
-        ? x.Category.Name
-        : null,
+                            x.FileExtension,
 
-                        Folder =
-        x.Folder != null
-        ? x.Folder.Name
-        : "Root"
-                    })
-                    .ToListAsync();
+                            x.FileSize,
 
-            return Ok(documents);
+                            x.StoragePath,
+
+                            x.CreatedAt,
+
+                            x.FolderId,
+
+                            x.CategoryId,
+
+                            UploadedBy =
+                        x.User != null
+                        ? x.User.FullName
+                        : "Unknown User",
+
+                            Category =
+                                x.Category != null
+                                ? x.Category.Name
+                                : "",
+
+                            Folder =
+                                x.Folder != null
+                                ? x.Folder.Name
+                                : "Root"
+                        })
+
+                        .ToListAsync();
+
+                return Ok(documents);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         // =========================
@@ -280,22 +321,51 @@ namespace API_DASM.Controllers
         // =========================
 
         [HttpGet("view/{id}")]
-        public async Task<IActionResult> ViewFile(Guid id)
+        public async Task<IActionResult> ViewFile(
+    Guid id,
+    [FromQuery] Guid userId)
         {
-            var document = await _context.Documents
-                .FirstOrDefaultAsync(x => x.Id == id);
+            // =========================
+            // CHECK ACCESS
+            // =========================
+
+            var access = await GetUserAccess(userId);
+
+            if (access == null || !access.CanView)
+            {
+                return Unauthorized(
+                    new
+                    {
+                        success = false,
+                        message = "You do not have permission to view files."
+                    });
+            }
+
+            // =========================
+            // FIND DOCUMENT
+            // =========================
+
+            var document =
+                await _context.Documents
+                    .FirstOrDefaultAsync(x => x.Id == id);
 
             if (document == null)
             {
                 return NotFound("Document not found.");
             }
 
+            // =========================
+            // CHECK FILE EXISTS
+            // =========================
+
             if (!System.IO.File.Exists(document.StoragePath))
             {
                 return NotFound("Physical file missing.");
             }
 
-            var bytes = await System.IO.File.ReadAllBytesAsync(document.StoragePath);
+            var bytes =
+                await System.IO.File.ReadAllBytesAsync(
+                    document.StoragePath);
 
             return File(
                 bytes,
@@ -308,8 +378,30 @@ namespace API_DASM.Controllers
         // =========================
 
         [HttpGet("download/{id}")]
-        public async Task<IActionResult> DownloadDocument(Guid id)
+        public async Task<IActionResult> DownloadDocument(
+     Guid id,
+     [FromQuery] Guid userId)
         {
+            // =========================
+            // CHECK ACCESS
+            // =========================
+
+            var access = await GetUserAccess(userId);
+
+            if (access == null || !access.CanDownload)
+            {
+                return Unauthorized(
+                    new
+                    {
+                        success = false,
+                        message = "You do not have permission to download."
+                    });
+            }
+
+            // =========================
+            // FIND DOCUMENT
+            // =========================
+
             var document =
                 await _context.Documents
                     .FirstOrDefaultAsync(x => x.Id == id);
@@ -319,9 +411,13 @@ namespace API_DASM.Controllers
                 return NotFound("Document not found.");
             }
 
+            // =========================
+            // CHECK FILE EXISTS
+            // =========================
+
             if (!System.IO.File.Exists(document.StoragePath))
             {
-                return NotFound("Physical file not found.");
+                return NotFound("Physical file missing.");
             }
 
             var bytes =
@@ -339,8 +435,30 @@ namespace API_DASM.Controllers
         // =========================
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteDocument(Guid id)
+        public async Task<IActionResult> DeleteDocument(
+    Guid id,
+    [FromQuery] Guid userId)
         {
+            // =========================
+            // CHECK ACCESS
+            // =========================
+
+            var access = await GetUserAccess(userId);
+
+            if (access == null || !access.CanDelete)
+            {
+                return Unauthorized(
+                    new
+                    {
+                        success = false,
+                        message = "You do not have permission to delete."
+                    });
+            }
+
+            // =========================
+            // FIND DOCUMENT
+            // =========================
+
             var document =
                 await _context.Documents
                     .FirstOrDefaultAsync(x => x.Id == id);
@@ -356,7 +474,7 @@ namespace API_DASM.Controllers
             }
 
             // =========================
-            // DELETE PHYSICAL FILE
+            // DELETE FILE
             // =========================
 
             if (System.IO.File.Exists(document.StoragePath))
@@ -365,7 +483,7 @@ namespace API_DASM.Controllers
             }
 
             // =========================
-            // DELETE DOCUMENT VERSIONS
+            // DELETE VERSIONS
             // =========================
 
             var versions =
@@ -389,5 +507,61 @@ namespace API_DASM.Controllers
                 message = "Document deleted successfully."
             });
         }
+
+        // =========================================
+        // GET DOCUMENTS BY USER
+        // =========================================
+
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetDocumentsByUser(Guid userId)
+        {
+            try
+            {
+                var documents =
+                    await _context.Documents
+
+                        .Include(x => x.Category)
+
+                        .Include(x => x.Folder)
+
+                        .Where(x =>
+                            !x.IsDeleted &&
+                            x.UploadedBy == userId)
+
+                        .OrderByDescending(x => x.CreatedAt)
+
+                        .Select(x => new
+                        {
+                            x.Id,
+
+                            x.OriginalFileName,
+
+                            x.FileSize,
+
+                            x.StoragePath,
+
+                            x.CreatedAt,
+
+                            Category =
+                                x.Category != null
+                                ? x.Category.Name
+                                : "",
+
+                            x.UploadedBy,
+
+                            x.FolderId
+                        })
+
+                        .ToListAsync();
+
+                return Ok(documents);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+
     }
 }

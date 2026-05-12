@@ -1,0 +1,222 @@
+@page "/create-user"
+@layout MainLayout
+@inject NavigationManager Nav
+@inject UserService UserService
+@using System.Text
+@using DocArchiveAdmin.Models
+@using DocArchiveAdmin.Services
+@using DocArchiveAdmin.DTOs
+
+<link rel="stylesheet" href="css/create-user.css" />
+
+<div class="user-create-page">
+
+    <!-- ================= HEADER ================= -->
+    <div class="page-header">
+        <h1>Create New User</h1>
+        <p>Add a new user account to the system</p>
+    </div>
+
+    <div class="form-wrapper">
+
+        <EditForm Model="@userModel" OnSubmit="HandleCreateUser">
+
+            <!-- ================= BASIC INFO ================= -->
+            <div class="card">
+                <div class="card-title">Basic Information</div>
+
+                <div class="grid-2">
+
+                    <div class="field">
+                        <label>User Code</label>
+                        <input class="input" value="@userModel.UserCode" disabled />
+                    </div>
+
+                    <div class="field">
+                        <label>Username</label>
+                        <input class="input @(usernameError ? "error" : "")"
+                               placeholder="Enter username"
+                               @bind="userModel.Username"
+                               @oninput="ClearError" />
+                        @if (usernameError)
+                        {
+                            <span class="error-text">Username is required</span>
+                        }
+                    </div>
+
+                    <div class="field">
+                        <label>Full Name</label>
+                        <input class="input"
+                               placeholder="Enter full name"
+                               @bind="userModel.FullName" />
+                    </div>
+
+                    <div class="field">
+                        <label>Email</label>
+                        <input class="input"
+                               placeholder="email@example.com"
+                               value="@userModel.Email"
+                               @oninput="ValidateEmail" />
+                        @if (!string.IsNullOrEmpty(emailError))
+                        {
+                            <span class="error-text">@emailError</span>
+                        }
+                    </div>
+
+                    <div class="field full">
+                        <label>Contact Number</label>
+                        <div class="phone-input">
+                            <span>+63</span>
+                            <input class="input"
+                                   placeholder="9XXXXXXXXX"
+                                   value="@userModel.ContactNumber"
+                                   @oninput="FormatContactNumber" />
+                        </div>
+                    </div>
+
+                    <div class="field full">
+                        <label>Address</label>
+                        <input class="input"
+                               placeholder="Complete address"
+                               @bind="userModel.Address" />
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ================= ACCOUNT SETUP ================= -->
+            <div class="card">
+                <div class="card-title">Account Setup</div>
+
+                <div class="grid-2">
+
+                    <div class="field">
+                        <label>Password</label>
+
+                        <div class="password-box">
+                            <input type="@passwordType"
+                                   class="input @(passwordError ? "error" : "")"
+                                   placeholder="Enter password"
+                                   @bind="userModel.TemporaryPassword"
+                                   @oninput="ClearError" />
+
+                            <button type="button"
+                                    class="icon-btn"
+                                    @onclick="TogglePasswordVisibility">
+                                👁
+                            </button>
+                        </div>
+
+                        @if (passwordError)
+                        {
+                            <span class="error-text">Minimum 8 characters</span>
+                        }
+                    </div>
+
+                    <div class="field">
+                        <label>&nbsp;</label>
+
+                        <button type="button"
+                                class="btn-secondary"
+                                @onclick="GenerateSecurePassword">
+                            Generate Password
+                        </button>
+                    </div>
+
+                    <div class="field full">
+                        <label class="checkbox">
+                            <input type="checkbox"
+                                   @bind="userModel.ForcePasswordChangeOnLogin" />
+                            Force password change on login
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ================= ROLE + ACCESS ================= -->
+            <div class="card">
+                <div class="card-title">Role & Access Level</div>
+
+                <div class="grid-2">
+
+                    <div class="field">
+                        <label>Role</label>
+                        <select class="input @(roleError ? "error" : "")"
+                                @bind="userModel.Role"
+                                @bind:after="ClearError">
+
+                            <option value="">Select Role</option>
+
+                            @foreach (var role in roles)
+                            {
+                                <option value="@role.RoleName">@role.RoleName</option>
+                            }
+
+                        </select>
+
+                        @if (roleError)
+                        {
+                            <span class="error-text">Role is required</span>
+                        }
+                    </div>
+
+                    <div class="field">
+                        <label>Access Level</label>
+                        <select class="input @(accessError ? "error" : "")"
+                                @bind="userModel.AccessLevel"
+                                @bind:after="ClearError">
+
+                            <option value="">Select Level</option>
+                            <option value="1">Level 1 - View</option>
+                            <option value="2">Level 2 - Download</option>
+                            <option value="3">Level 3 - Edit</option>
+                            <option value="4">Level 4 - Share</option>
+                            <option value="5">Level 5 - Full Access</option>
+
+                        </select>
+
+                        @if (accessError)
+                        {
+                            <span class="error-text">Access level is required</span>
+                        }
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ================= STATUS ================= -->
+            <div class="card">
+                <label class="switch">
+                    <input type="checkbox" @bind="userModel.IsActive" />
+                    <span>Active Account</span>
+                </label>
+            </div>
+
+            <!-- ================= ACTIONS ================= -->
+            <div class="action-bar">
+
+                <button type="submit" class="btn-primary" disabled="@isSubmitting">
+                    @(isSubmitting ? "Creating..." : "Create User")
+                </button>
+
+                <button type="button" class="btn-secondary" @onclick="GoBack">
+                    Cancel
+                </button>
+
+            </div>
+
+            @if (showSuccessMessage)
+            {
+                <div class="alert success">User created successfully!</div>
+            }
+
+            @if (!string.IsNullOrEmpty(generalError))
+            {
+                <div class="alert error">@generalError</div>
+            }
+
+        </EditForm>
+
+    </div>
+</div>
